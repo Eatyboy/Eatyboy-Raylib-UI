@@ -1,28 +1,25 @@
 #include "include/ui.h"
 #include "include/raymath.h"
 
-#define SLIDER_RADIUS 6
-#define SLIDER_THICK 3
-
-Slider NewSlider(float initValue, int posX, int posY, float length) {
+Slider newSlider(float initValue, int posX, int posY, float length) {
 	return (Slider){Clamp(initValue, 0.0f, 1.0f), (Vector2){posX, posY}, length, false};
 }
 
-void DrawSlider(Slider slider) {
+void drawSlider(Slider slider) {
 	Vector2 sliderEndPos = (Vector2){slider.pos.x + slider.length, slider.pos.y};
 	DrawLineEx(slider.pos, sliderEndPos, SLIDER_THICK, WHITE);
-	DrawCircleV(GetSliderPos(slider), SLIDER_RADIUS, RAYWHITE);
+	DrawCircleV(getSliderPos(slider), SLIDER_RADIUS, RAYWHITE);
 }
 
-Vector2 GetSliderPos(Slider slider) {
+Vector2 getSliderPos(Slider slider) {
 	return (Vector2){slider.pos.x + slider.value * slider.length, slider.pos.y};
 }
 
-void UpdateSlider(Slider *slider) {
+void updateSlider(Slider *slider) {
 	Vector2 mousePos = GetMousePosition();
 
 	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) 
-		&& Vector2Distance(mousePos, GetSliderPos(*slider)) <= SLIDER_RADIUS) {
+		&& Vector2Distance(mousePos, getSliderPos(*slider)) <= SLIDER_RADIUS) {
 		slider->isDragging = true;
 		slider->dragStartPos = mousePos;
 		slider->dragStartValue = slider->value;
@@ -36,5 +33,79 @@ void UpdateSlider(Slider *slider) {
 		float clampedMouseX = Clamp(mousePos.x, slider->pos.x, slider->pos.x + slider->length);
 		float delta = (clampedMouseX - slider->dragStartPos.x) / slider->length;
 		slider->value = slider->dragStartValue + delta;
+	}
+}
+
+Button newButton(int posX, int posY, int width, int height, float round, 
+				 Color bgColor, Color borderColor, const char *text,
+				 void (*fn)(void *state)) {
+	return (Button){
+		.rect = (Rectangle){posX, posY, width, height},
+		.round = round,
+		.bgColor = bgColor,
+		.borderColor = borderColor,
+		.text = text,
+		.fn = fn,
+		.isPressed = false,
+		.isHovered = false
+	};
+}
+
+void drawButton(Button btn, Font font) {
+	Rectangle rec = btn.rect;
+	bool btnDown = btn.isPressed;
+	float sizeDiffMult = (1 - BTN_DOWN_SCALE) / 2;
+
+	float btnX = rec.x; 
+	float btnY = rec.y;
+	float btnWidth = rec.width; 
+	float btnHeight = rec.height;
+	float fontSize = btnHeight / 2;
+	if (btnDown) {
+		btnX += rec.width * sizeDiffMult;
+		btnY += rec.height * sizeDiffMult;
+		btnWidth *= BTN_DOWN_SCALE;
+		btnHeight *= BTN_DOWN_SCALE;
+		fontSize *= BTN_DOWN_SCALE;
+	}
+	rec = (Rectangle){btnX, btnY, btnWidth, btnHeight};
+
+	DrawRectangleRoundedLines(rec, btn.round, 0, BTN_BORDER_THICK, btn.borderColor);
+	DrawRectangleRounded(rec, btn.round, 0, btn.isHovered 
+		? lightenColor(btn.bgColor, BTN_HOVER_LIGHTEN) 
+		: btn.bgColor);
+	drawCenteredText(btn.text, rec, fontSize, font, WHITE, 2);
+}
+
+Color lightenColor(Color color, float amount) {
+	return (Color){
+		Lerp(color.r, 255, amount),
+		Lerp(color.g, 255, amount),
+		Lerp(color.b, 255, amount),
+		255
+	};
+}
+
+void drawCenteredText(const char *text, Rectangle parent, float fontSize, Font font, Color color, float spacing) {
+	Vector2 textHalfDim = Vector2Scale(MeasureTextEx(font, text, fontSize, spacing), 0.5f);
+	Vector2 textPos = (Vector2){
+		parent.x + parent.width / 2 - textHalfDim.x,
+		parent.y + parent.height / 2 - textHalfDim.y,
+	};
+	DrawTextEx(font, text, textPos, fontSize, spacing, color);
+}
+
+void handleButton(Button* button, void *state) {
+	Vector2 mousePos = GetMousePosition();
+	button->isHovered = CheckCollisionPointRec(mousePos, button->rect);
+	if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+		button->isPressed = false;
+		if (CheckCollisionPointRec(mousePos, button->rect)) {
+			(button->fn)(state);
+		}
+	}
+	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) &&
+		CheckCollisionPointRec(mousePos, button->rect)) {
+		button->isPressed = true;
 	}
 }
