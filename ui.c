@@ -1,4 +1,5 @@
 #include "include/ui.h"
+#include "include/raylib.h"
 #include "include/raymath.h"
 
 Slider newSlider(float initValue, int posX, int posY, float length) {
@@ -18,11 +19,17 @@ Vector2 getSliderPos(Slider slider) {
 void updateSlider(Slider *slider) {
 	Vector2 mousePos = GetMousePosition();
 
-	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) 
-		&& Vector2Distance(mousePos, getSliderPos(*slider)) <= SLIDER_RADIUS) {
-		slider->isDragging = true;
-		slider->dragStartPos = mousePos;
-		slider->dragStartValue = slider->value;
+	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+		if (Vector2Distance(mousePos, getSliderPos(*slider)) <= SLIDER_RADIUS) {
+			slider->isDragging = true;
+			slider->dragStartPos = mousePos;
+			slider->dragStartValue = slider->value;
+		} else if (CheckCollisionPointLine(mousePos, slider->pos, 
+			(Vector2){slider->pos.x + slider->length, slider->pos.y},
+			SLIDER_THICK)) {
+			float delta = (mousePos.x - getSliderPos(*slider).x) / slider->length;
+			slider->value += delta;
+		}
 	}
 
 	if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
